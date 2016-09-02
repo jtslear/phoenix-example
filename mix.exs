@@ -17,7 +17,7 @@ defmodule PhoenixExample.Mixfile do
   # Type `mix help compile.app` for more information.
   def application do
     [mod: {PhoenixExample, []},
-     applications: [:phoenix, :phoenix_html, :cowboy, :logger, :gettext]]
+     applications: [:phoenix, :phoenix_html, :cowboy, :logger, :gettext, :httpoison,]]
   end
 
   # Specifies which paths to compile per environment.
@@ -31,6 +31,7 @@ defmodule PhoenixExample.Mixfile do
     [{:phoenix, "~> 1.1.4"},
      {:phoenix_html, "~> 2.4"},
      {:phoenix_live_reload, "~> 1.0", only: :dev},
+     {:httpoison, "~> 0.7"},
      {:gettext, "~> 0.9"},
      {:cowboy, "~> 1.0"}]
   end
