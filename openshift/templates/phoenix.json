@@ -1,0 +1,218 @@
+{
+  "kind": "Template",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "phoenix-example",
+    "annotations": {
+      "description": "An example Phoenix application",
+      "tags": "quickstart,phoenix"
+    }
+  },
+  "labels": {
+    "template": "phoenix-example"
+  },
+  "objects": [{
+    "kind": "Service",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix-example",
+      "annotations": {
+        "description": "Exposes and load balances the application pods"
+      }
+    },
+    "spec": {
+      "ports": [{
+        "name": "web",
+        "port": 8080,
+        "targetPort": 8080
+      }],
+      "selector": {
+        "name": "phoenix-example"
+      }
+    }
+  }, {
+    "kind": "Route",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix-example"
+    },
+    "spec": {
+      "host": "${APPLICATION_DOMAIN}",
+      "to": {
+        "kind": "Service",
+        "name": "phoenix-example"
+      }
+    }
+  }, {
+    "kind": "ImageStream",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix",
+      "annotations": {
+        "description": "The upstream S2I builder image"
+      }
+    },
+    "spec": {
+      "dockerImageRepository": "docker.io/jtslear/phoenix-builder"
+    }
+  }, {
+    "kind": "ImageStream",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix-example",
+      "annotations": {
+        "description": "Keeps track of changes in the application image"
+      }
+    }
+  }, {
+    "kind": "BuildConfig",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix-example",
+      "annotations": {
+        "description": "Defines how to build the application"
+      }
+    },
+    "spec": {
+      "resources": {
+        "limits": {
+          "memory": "${BUILD_MEMORY_LIMIT}"
+        }
+      },
+      "source": {
+        "type": "Git",
+        "git": {
+          "uri": "${SOURCE_REPOSITORY_URL}",
+          "ref": "${SOURCE_REPOSITORY_REF}"
+        },
+        "contextDir": "${CONTEXT_DIR}"
+      },
+      "strategy": {
+        "type": "Source",
+        "sourceStrategy": {
+          "from": {
+            "kind": "ImageStreamTag",
+            "namespace": "${NAMESPACE}",
+            "name": "phoenix:latest"
+          },
+          "forcePull": true
+        }
+      },
+      "output": {
+        "to": {
+          "kind": "ImageStreamTag",
+          "name": "phoenix-example:latest"
+        }
+      },
+      "triggers": [{
+        "type": "ImageChange"
+      }, {
+        "type": "ConfigChange"
+      }, {
+        "type": "GitHub",
+        "github": {
+          "secret": "${GITHUB_WEBHOOK_SECRET}"
+        }
+      }]
+    }
+  }, {
+    "kind": "DeploymentConfig",
+    "apiVersion": "v1",
+    "metadata": {
+      "name": "phoenix-example",
+      "annotations": {
+        "description": "Defines how to deploy the application server"
+      }
+    },
+    "spec": {
+      "strategy": {
+        "type": "Rolling"
+      },
+      "triggers": [{
+        "type": "ImageChange",
+        "imageChangeParams": {
+          "automatic": true,
+          "containerNames": [
+            "phoenix-example"
+          ],
+          "from": {
+            "kind": "ImageStreamTag",
+            "name": "phoenix-example:latest"
+          }
+        }
+      }, {
+        "type": "ConfigChange"
+      }],
+      "replicas": 1,
+      "selector": {
+        "name": "phoenix-example"
+      },
+      "template": {
+        "metadata": {
+          "name": "phoenix-example",
+          "labels": {
+            "name": "phoenix-example"
+          }
+        },
+        "spec": {
+          "containers": [{
+            "name": "phoenix-example",
+            "image": "phoenix-example",
+            "ports": [{
+              "containerPort": 8080
+            }],
+            "resources": {
+              "limits": {
+                "memory": "${DEPLOYMENT_MEMORY_LIMIT}"
+              }
+            }
+          }]
+        }
+      }
+    }
+  }],
+  "parameters": [{
+    "name": "NAMESPACE",
+    "displayName": "Namespace",
+    "description": "Your OpenShift project namespace.",
+    "required": true,
+    "value": ""
+  }, {
+    "name": "SOURCE_REPOSITORY_URL",
+    "displayName": "Git Repository URL",
+    "description": "The URL of the repository with your application source code.",
+    "value": "https://github.com/jtslear/phoenix-example.git",
+    "required": true
+  }, {
+    "name": "SOURCE_REPOSITORY_REF",
+    "displayName": "Git Reference",
+    "description": "Set this to a branch name, tag or other ref of your repository if you are not using the default branch."
+  }, {
+    "name": "BUILD_MEMORY_LIMIT",
+    "displayName": "Build Memory Limit",
+    "description": "Maximum amount of memory the builder Phoenix container can use.",
+    "value": "1Gi",
+    "required": true
+  }, {
+    "name": "DEPLOYMENT_MEMORY_LIMIT",
+    "displayName": "Deployment Memory Limit",
+    "description": "Maximum amount of memory the deployed Phoenix container can use.",
+    "value": "1Gi",
+    "required": true
+  }, {
+    "name": "CONTEXT_DIR",
+    "displayName": "Context Directory",
+    "description": "Set this to the relative path to your project if it is not in the root of your repository."
+  }, {
+    "name": "APPLICATION_DOMAIN",
+    "displayName": "Application Hostname",
+    "description": "The exposed hostname that will route to the Phoenix service, if left blank a value will be defaulted.",
+    "value": ""
+  }, {
+    "name": "GITHUB_WEBHOOK_SECRET",
+    "displayName": "GitHub Webhook Secret",
+    "description": "A secret string used to configure the GitHub webhook.",
+    "generate": "expression",
+    "from": "[a-zA-Z0-9]{40}"
+  }]
+}
